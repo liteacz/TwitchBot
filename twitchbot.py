@@ -4,7 +4,7 @@ from twitchio.ext import commands
 import os
 
 # Spotify authentication
-scope = "user-modify-playback-state"
+scope = "user-modify-playback-state,user-read-currently-playing"
 spotify = spotipy.Spotify(client_credentials_manager=SpotifyOAuth(scope=scope, redirect_uri = 'http://localhost'))
 
 def skip_song():
@@ -13,6 +13,11 @@ def skip_song():
     
 def restart_song():
     print(" o Song restart")
+    spotify.previous_track()
+
+def what_song():
+    print(" - Song query")
+    return "Aktuálně hraje " + spotify.current_user_playing_track()['item']['name'] + " od " +  spotify.current_user_playing_track()['item']['artists'][0]['name']
 
 def try_add_song_to_queue(search):
     track_id = spotify.search(q=search, type='track')
@@ -44,15 +49,25 @@ class Bot(commands.Bot):
         # Get the asking user.
         asker = await self.fetch_users(names=[ctx.author.name])
         print(" - User " + ctx.author.name.upper() + " trying to use " + ctx.message.content)
+
+        data = ctx.message.content.split(' ')
+
+        # Not enough arguments supplied. Show help.
+        if (len(data) <= 1) and not ctx.author.is_subscriber and not ctx.author.is_mod:
+            return   
+
+        if (len(data) > 1) and data[1].lower() == "song":
+            await ctx.send("@" + ctx.author.name + " " + what_song() )
+            return
+
+        # Only SUBSCRIBER and MODERATOR allowed from this point on.
         if not ctx.author.is_subscriber and not ctx.author.is_mod:
             await ctx.send('Sorry @' + ctx.author.name + ', tahle funkce je jenom pro suby a mody.')
             return
 
-        data = ctx.message.content.split(' ')
-
-        # Not enough arguments supplied.
+        # Not enough arguments supplied. Show help.
         if (len(data) <= 1):
-            await ctx.send('@' + ctx.author.name + ' hm?')
+            await ctx.send('@' + ctx.author.name + ' spotify příkaz se používá jako !spotify add <jméno písničky>')
             print(" x Not enough arguments in call " + ctx.message.content)
             return   
 
@@ -79,6 +94,7 @@ class Bot(commands.Bot):
             await ctx.send("@" + ctx.author.name + " Pouštím aktuální song znovu od začátku")
             return
 
+        print(" x No match for command " + data[1].lower())
         await ctx.send('@' + ctx.author.name + ' hm?')
 
 
